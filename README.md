@@ -21,6 +21,8 @@ python cli.py
 Установить зависимости:
 pip install -r requirements.txt
 
+Использовать set TELEGRAM_BOT_TOKEN=токен
+или
 Прописать токен бота в файле telegram_bot.py
 
 Запуск:
