@@ -1,21 +1,21 @@
-"""Domain-level errors for fridge operations."""
+"""Доменные исключения для операций с холодильником"""
 
 
 class FridgeError(Exception):
-    """Base error for all fridge failures."""
+    """Базовая ошибка"""
 
 
 class DoorClosedError(FridgeError):
-    """Raised when operation requires an open door."""
+    """Если операция требует открытой двери"""
 
 
 class UnknownZoneError(FridgeError):
-    """Raised when the requested zone does not exist."""
+    """Если запрашиваемой зоны не существует"""
 
 
 class ItemNotFoundError(FridgeError):
-    """Raised when an item is missing in a zone."""
+    """Если предмет в зоне не найден"""
 
 
 class ZoneCapacityError(FridgeError):
-    """Raised when a zone is full."""
+    """Если зона полная"""

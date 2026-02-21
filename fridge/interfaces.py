@@ -1,3 +1,4 @@
+"""Интерфейсы(контракты)"""
 from abc import ABC, abstractmethod
 
 

@@ -1,99 +1,103 @@
-"""Тг бот интерфейс"""
+"""интерфейс тг бота"""
 
 import asyncio
 import os
 
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from aiogram import Bot, Dispatcher, Router
+from aiogram.filters import Command
+from aiogram.types import Message
 
 from fridge.factory import create_default_service
 from fridge.interfaces import FridgeController
-
-
-def ensure_event_loop() -> None:
-    """если нет loop'а, то он создается"""
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            raise RuntimeError
-    except RuntimeError:
-        asyncio.set_event_loop(asyncio.new_event_loop())
 
 
 class TelegramFridgeBot:
     def __init__(self, token: str, controller: FridgeController) -> None:
         self._token = token
         self._controller = controller
+        self._router = Router()
+        self._dispatcher = Dispatcher()
+        self._dispatcher.include_router(self._router)
+        self._register_handlers()
 
-    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        await self._reply(update, "Холодильник готов.\n\n" + self._controller.help_text())
+    def _register_handlers(self) -> None:
+        self._router.message.register(self.start, Command("start"))
+        self._router.message.register(self.help_command, Command("help"))
+        self._router.message.register(self.open_command, Command("open"))
+        self._router.message.register(self.close_command, Command("close"))
+        self._router.message.register(self.status_command, Command("status"))
+        self._router.message.register(self.list_command, Command("list"))
+        self._router.message.register(self.put_command, Command("put"))
+        self._router.message.register(self.take_command, Command("take"))
 
-    async def help_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        await self._reply(update, self._controller.help_text())
+    async def start(self, message: Message) -> None:
+        await self._reply(
+            message, "Бот холодильника запущен.\n\n" + self._controller.help_text()
+        )
 
-    async def open_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        await self._reply(update, self._controller.open())
+    async def help_command(self, message: Message) -> None:
+        await self._reply(message, self._controller.help_text())
 
-    async def close_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        await self._reply(update, self._controller.close())
+    async def open_command(self, message: Message) -> None:
+        await self._reply(message, self._controller.open())
 
-    async def status_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        await self._reply(update, self._controller.status())
+    async def close_command(self, message: Message) -> None:
+        await self._reply(message, self._controller.close())
 
-    async def list_command(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        if context.args:
-            await self._reply(update, self._controller.list_zone(context.args[0]))
+    async def status_command(self, message: Message) -> None:
+        await self._reply(message, self._controller.status())
+
+    async def list_command(self, message: Message) -> None:
+        parts = self._split_command(message.text, maxsplit=1)
+        if len(parts) == 1:
+            await self._reply(message, self._controller.list_all())
             return
-        await self._reply(update, self._controller.list_all())
+        await self._reply(message, self._controller.list_zone(parts[1]))
 
-    async def put_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if len(context.args) < 2:
-            await self._reply(update, "Пример: /put <зона> <объект>")
+    async def put_command(self, message: Message) -> None:
+        parts = self._split_command(message.text, maxsplit=2)
+        if len(parts) < 3:
+            await self._reply(message, "Использование: /put <зона> <предмет>")
             return
-        zone = context.args[0]
-        item_name = " ".join(context.args[1:])
-        await self._reply(update, self._controller.put(zone, item_name))
+        zone_name = parts[1]
+        item_name = parts[2]
+        await self._reply(message, self._controller.put(zone_name, item_name))
 
-    async def take_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if len(context.args) < 2:
-            await self._reply(update, "Пример: /take <зона> <объект>")
+    async def take_command(self, message: Message) -> None:
+        parts = self._split_command(message.text, maxsplit=2)
+        if len(parts) < 3:
+            await self._reply(message, "Использование: /take <зона> <предмет>")
             return
-        zone = context.args[0]
-        item_name = " ".join(context.args[1:])
-        await self._reply(update, self._controller.take(zone, item_name))
+        zone_name = parts[1]
+        item_name = parts[2]
+        await self._reply(message, self._controller.take(zone_name, item_name))
 
-    async def _reply(self, update: Update, text: str) -> None:
-        if update.message is not None:
-            await update.message.reply_text(text)
+    @staticmethod
+    def _split_command(text: str | None, maxsplit: int) -> list[str]:
+        if not text:
+            return []
+        return text.strip().split(maxsplit=maxsplit)
+
+    @staticmethod
+    async def _reply(message: Message, text: str) -> None:
+        await message.answer(text)
+
+    async def _run(self) -> None:
+        bot = Bot(token=self._token)
+        try:
+            await bot.delete_webhook(drop_pending_updates=True)
+            await self._dispatcher.start_polling(bot)
+        finally:
+            await bot.session.close()
 
     def run(self) -> None:
-        ensure_event_loop()
-        app = Application.builder().token(self._token).build()
-        app.add_handler(CommandHandler("start", self.start))
-        app.add_handler(CommandHandler("help", self.help_command))
-        app.add_handler(CommandHandler("open", self.open_command))
-        app.add_handler(CommandHandler("close", self.close_command))
-        app.add_handler(CommandHandler("status", self.status_command))
-        app.add_handler(CommandHandler("list", self.list_command))
-        app.add_handler(CommandHandler("put", self.put_command))
-        app.add_handler(CommandHandler("take", self.take_command))
-        app.run_polling(drop_pending_updates=True)
+        asyncio.run(self._run())
 
 
 def main() -> None:
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "tokenhere").strip()
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     if not token:
-        raise RuntimeError("Не указан токен бота")
+        raise RuntimeError("Не задан TELEGRAM_BOT_TOKEN перед запуском telegram_bot.py")
     controller = create_default_service()
     bot = TelegramFridgeBot(token=token, controller=controller)
     bot.run()

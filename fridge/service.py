@@ -33,7 +33,7 @@ class FridgeService(FridgeController):
         zone_name = self._normalize_zone(zone_name)
         item_name = item_name.strip()
         if not item_name:
-            return "item_name не может быть пустым"
+            return "Название предмета не может быть пустым."
 
         try:
             self._storage_manager.put_item(zone_name, item_name)
@@ -45,7 +45,7 @@ class FridgeService(FridgeController):
         zone_name = self._normalize_zone(zone_name)
         item_name = item_name.strip()
         if not item_name:
-            return "item_name не может быть пустым"
+            return "Название предмета не может быть пустым."
 
         try:
             self._storage_manager.take_item(zone_name, item_name)
@@ -67,8 +67,8 @@ class FridgeService(FridgeController):
         return "\n".join(lines)
 
     def status(self) -> str:
-        door_state = "open" if self._door_manager.is_door_open() else "closed"
-        return f"Door: {door_state}\n{self.list_all()}"
+        door_state = "открыта" if self._door_manager.is_door_open() else "закрыта"
+        return f"Дверь: {door_state}\n{self.list_all()}"
 
     def help_text(self) -> str:
         return (
@@ -76,12 +76,12 @@ class FridgeService(FridgeController):
             "  open\n"
             "  close\n"
             "  put <зона> <объект>\n"
-            "  take <зона <объект>\n"
+            "  take <зона> <объект>\n"
             "  list [зона]\n"
             "  status\n"
             "  help\n"
             "  exit\n\n"
-            "Зоны: main, door, medicine (aliases: med, meds, drugs)."
+            "Зоны: main, door, medicine (алиасы: med, meds, drugs)."
         )
 
     def _normalize_zone(self, zone_name: str) -> str:
@@ -91,5 +91,5 @@ class FridgeService(FridgeController):
     @staticmethod
     def _format_zone(zone_name: str, items: list[str]) -> str:
         if not items:
-            return f"{zone_name}: empty"
+            return f"{zone_name}: пусто"
         return f"{zone_name}: {', '.join(items)}"
