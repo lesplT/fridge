@@ -14,12 +14,14 @@
 
 ## Как запустить
 
-1) В терминале
+1) В терминале:
 Запуск:
 python cli.py
 
 
-2) Телеграм бот
+2) Телеграм бот:
+https://t.me/fredthefridge_bot
+или:
 Установить зависимости:
 pip install -r requirements.txt
 
